@@ -88,10 +88,15 @@ def calculate_dcf(
 
         previous_revenue = forecast_revenue
 
-    terminal_value = (
-        fcff_values[-1] * (1 + terminal_growth)
-        / (wacc - terminal_growth)
+   if wacc <= terminal_growth:
+    raise ValueError(
+        "WACC must be greater than the terminal growth rate."
     )
+
+terminal_value = (
+    fcff_values[-1] * (1 + terminal_growth)
+    / (wacc - terminal_growth)
+)
 
     pv_terminal_value = (
         terminal_value / ((1 + wacc) ** forecast_years)
@@ -771,3 +776,5 @@ st.caption(
     "Verify all financial inputs and assumptions independently. "
     "It does not constitute investment advice."
 )
+
+
