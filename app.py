@@ -631,10 +631,10 @@ def get_russell3000_universe():
     return universe.reset_index(drop=True)
 
 
-sample = load_real_targets()
+    sample = load_real_targets()
 
 
-     st.caption(
+    st.caption(
         "Revenue is in illustrative currency millions. "
         "Strategic Fit is a sample score from 1 to 5."
     )
