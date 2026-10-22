@@ -88,12 +88,12 @@ def calculate_dcf(
 
         previous_revenue = forecast_revenue
 
-   if wacc <= terminal_growth:
-    raise ValueError(
+    if wacc <= terminal_growth:
+     raise ValueError(
         "WACC must be greater than the terminal growth rate."
     )
 
-   terminal_value = (
+    terminal_value = (
     fcff_values[-1] * (1 + terminal_growth)
     / (wacc - terminal_growth)
 )
