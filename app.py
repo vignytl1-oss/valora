@@ -93,7 +93,7 @@ def calculate_dcf(
         "WACC must be greater than the terminal growth rate."
     )
 
-terminal_value = (
+   terminal_value = (
     fcff_values[-1] * (1 + terminal_growth)
     / (wacc - terminal_growth)
 )
