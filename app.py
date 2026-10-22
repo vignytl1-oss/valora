@@ -735,7 +735,7 @@ sample = load_real_targets()
 
             return (series - low) / (high - low)
 
-        if not filtered.empty:
+    if not filtered.empty:
             # Score relative to the candidates that pass the filters.
             growth_score = normalize(filtered["Growth"])
             margin_score = normalize(filtered["EBITDA_Margin"])
