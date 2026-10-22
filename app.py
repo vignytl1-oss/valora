@@ -810,7 +810,7 @@ def get_russell3000_universe():
                 mime="text/csv"
             )
 
-        else:
+    else:
             st.info(
                 "No sample companies meet all the current filters. "
                 "Try relaxing one or more criteria."
