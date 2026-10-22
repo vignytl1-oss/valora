@@ -558,24 +558,81 @@ with screening_tab:
         "It does not identify actual acquisition targets."
     )
 
-    sample = pd.DataFrame([
-        ["Target A", "Food & Beverage", 450, 0.08, 0.18, 1.2, 9.0, 5],
-        ["Target B", "Food & Beverage", 700, 0.12, 0.15, 1.8, 11.0, 4],
-        ["Target C", "Consumer Goods", 320, 0.15, 0.20, 0.8, 10.0, 4],
-        ["Target D", "Food & Beverage", 900, 0.04, 0.12, 2.5, 8.0, 3],
-        ["Target E", "Packaging", 280, 0.10, 0.17, 1.0, 7.5, 4],
-        ["Target F", "Consumer Goods", 600, 0.06, 0.14, 1.4, 9.5, 5],
-        ["Target G", "Food & Beverage", 150, 0.18, 0.22, 0.5, 12.0, 3],
-        ["Target H", "Packaging", 500, 0.09, 0.16, 1.1, 8.5, 4],
-        ["Target I", "Personal Care", 380, 0.13, 0.19, 0.7, 10.0, 4],
-        ["Target J", "Food & Beverage", 1100, 0.05, 0.11, 2.0, 7.0, 5],
-        ["Target K", "Consumer Goods", 240, 0.11, 0.13, 1.6, 8.0, 3],
-        ["Target L", "Personal Care", 750, 0.07, 0.21, 0.9, 13.0, 4],
-    ], columns=[
-        "Target", "Sector", "Revenue", "Growth",
-        "EBITDA_Margin", "Net_Debt_EBITDA",
-        "EV_EBITDA", "Strategic_Fit"
-    ])
+  
+
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_russell3000_universe():
+    """Load a Russell 3000 proxy universe from iShares IWV holdings."""
+    import io
+    import requests
+
+    url = (
+        "https://www.ishares.com/us/products/239714/"
+        "ishares-russell-3000-etf/1467271812596.ajax"
+        "?fileType=csv&fileName=IWV_holdings&dataType=fund"
+    )
+
+    response = requests.get(
+        url,
+        timeout=30,
+        headers={"User-Agent": "Mozilla/5.0"},
+    )
+    response.raise_for_status()
+
+    # iShares CSV files typically include metadata before the table.
+    lines = response.text.splitlines()
+    header_row = next(
+        (
+            i for i, line in enumerate(lines)
+            if line.strip().startswith('"Ticker","Name","Sector"')
+            or line.strip().startswith("Ticker,Name,Sector")
+        ),
+        None,
+    )
+
+    if header_row is None:
+        raise ValueError(
+            "Could not identify the ticker table in the IWV holdings file."
+        )
+
+    holdings = pd.read_csv(io.StringIO("\n".join(lines[header_row:])))
+
+    required = ["Ticker", "Name", "Sector", "Asset Class"]
+    missing = [col for col in required if col not in holdings.columns]
+
+    if missing:
+        raise ValueError(
+            f"IWV holdings are missing expected columns: {missing}"
+        )
+
+    universe = holdings.loc[
+        (holdings["Asset Class"] == "Equity")
+        & (holdings["Location"] == "United States"),
+        ["Ticker", "Name", "Sector"],
+    ].copy()
+
+    universe.columns = ["Ticker", "Company", "Sector"]
+    universe["Ticker"] = (
+        universe["Ticker"].astype(str).str.replace(".", "-", regex=False)
+    )
+
+    universe = universe[
+        universe["Ticker"].notna()
+        & (universe["Ticker"].str.strip() != "")
+        & (universe["Ticker"] != "-")
+    ].drop_duplicates(subset=["Ticker"])
+
+    if len(universe) < 2000:
+        raise ValueError(
+            f"Only {len(universe)} equities loaded. "
+            "The holdings file may be incomplete or its format may have changed."
+        )
+
+    return universe.reset_index(drop=True)
+
+
+sample = load_real_targets()
+
 
     st.caption(
         "Revenue is in illustrative currency millions. "
