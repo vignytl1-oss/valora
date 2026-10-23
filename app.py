@@ -550,19 +550,10 @@ with valuation_tab:
 # ==================================================
 
 with screening_tab:
-    st.header("M&A Target Screening")
-
-    st.warning(
-        "The initial target universe below is fictional sample "
-        "data for demonstrating the screening methodology. "
-        "It does not identify actual acquisition targets."
-    )
-
-  
 
 @st.cache_data(ttl=86400, show_spinner=False)
 def get_russell3000_universe():
-    """Load a Russell 3000 proxy universe from iShares IWV holdings."""
+    """Load a Russell 3000 proxy from iShares IWV holdings."""
     import io
     import requests
 
@@ -579,30 +570,39 @@ def get_russell3000_universe():
     )
     response.raise_for_status()
 
-    # iShares CSV files typically include metadata before the table.
     lines = response.text.splitlines()
+
     header_row = next(
         (
             i for i, line in enumerate(lines)
-            if line.strip().startswith('"Ticker","Name","Sector"')
-            or line.strip().startswith("Ticker,Name,Sector")
+            if "Ticker" in line
+            and "Name" in line
+            and "Asset Class" in line
         ),
         None,
     )
 
     if header_row is None:
         raise ValueError(
-            "Could not identify the ticker table in the IWV holdings file."
+            "Could not find the holdings table in the IWV file."
         )
 
-    holdings = pd.read_csv(io.StringIO("\n".join(lines[header_row:])))
+    holdings = pd.read_csv(
+        io.StringIO("\n".join(lines[header_row:]))
+    )
+    holdings.columns = holdings.columns.str.strip()
 
-    required = ["Ticker", "Name", "Sector", "Asset Class"]
-    missing = [col for col in required if col not in holdings.columns]
+    required = [
+        "Ticker", "Name", "Sector", "Asset Class", "Location"
+    ]
+
+    missing = [
+        col for col in required if col not in holdings.columns
+    ]
 
     if missing:
         raise ValueError(
-            f"IWV holdings are missing expected columns: {missing}"
+            f"IWV holdings are missing columns: {missing}"
         )
 
     universe = holdings.loc[
@@ -612,215 +612,68 @@ def get_russell3000_universe():
     ].copy()
 
     universe.columns = ["Ticker", "Company", "Sector"]
+
     universe["Ticker"] = (
-        universe["Ticker"].astype(str).str.replace(".", "-", regex=False)
+        universe["Ticker"]
+        .astype(str)
+        .str.replace(".", "-", regex=False)
+        .str.strip()
     )
 
     universe = universe[
-        universe["Ticker"].notna()
-        & (universe["Ticker"].str.strip() != "")
-        & (universe["Ticker"] != "-")
+        universe["Ticker"].ne("")
+        & universe["Ticker"].ne("-")
+        & universe["Ticker"].ne("nan")
     ].drop_duplicates(subset=["Ticker"])
 
     if len(universe) < 2000:
         raise ValueError(
             f"Only {len(universe)} equities loaded. "
-            "The holdings file may be incomplete or its format may have changed."
+            "The holdings data may be incomplete."
         )
 
     return universe.reset_index(drop=True)
 
 
-    sample = load_real_targets()
-
-
-    st.caption(
-        "Revenue is in illustrative currency millions. "
-        "Strategic Fit is a sample score from 1 to 5."
-    )
-
-    f1, f2, f3 = st.columns(3)
-
-    with f1:
-        acquirer = st.selectbox(
-            "Acquirer profile",
-            ["Coca-Cola", "PepsiCo", "Other / Custom"]
-        )
-
-        sectors = st.multiselect(
-            "Target sectors",
-            options=sorted(sample["Sector"].unique()),
-            default=sorted(sample["Sector"].unique())
-        )
-
-    with f2:
-        min_revenue = st.number_input(
-            "Minimum revenue (millions)",
-            min_value=0,
-            value=100,
-            step=50
-        )
-
-        min_growth = st.slider(
-            "Minimum revenue growth (%)",
-            0, 25, 5
-        ) / 100
-
-    with f3:
-        min_margin = st.slider(
-            "Minimum EBITDA margin (%)",
-            0, 40, 12
-        ) / 100
-
-        max_leverage = st.slider(
-            "Maximum Net Debt / EBITDA",
-            0.0, 5.0, 2.5, 0.1
-        )
-
-    max_multiple = st.slider(
-        "Maximum EV / EBITDA",
-        4.0, 20.0, 12.0, 0.5
-    )
-
-    st.markdown("#### Scoring weights")
-
-    w1, w2, w3, w4, w5 = st.columns(5)
-
-    with w1:
-        growth_weight = st.number_input(
-            "Growth (%)", 0, 100, 25
-        )
-    with w2:
-        margin_weight = st.number_input(
-            "Profitability (%)", 0, 100, 25
-        )
-    with w3:
-        leverage_weight = st.number_input(
-            "Leverage (%)", 0, 100, 15
-        )
-    with w4:
-        valuation_weight = st.number_input(
-            "Valuation (%)", 0, 100, 15
-        )
-    with w5:
-        fit_weight = st.number_input(
-            "Strategic fit (%)", 0, 100, 20
-        )
-
-    weights = [
-        growth_weight, margin_weight, leverage_weight,
-        valuation_weight, fit_weight
-    ]
-
-    if sum(weights) == 0:
-        st.error("At least one scoring weight must be positive.")
-    else:
-        filtered = sample[
-            sample["Sector"].isin(sectors)
-            & (sample["Revenue"] >= min_revenue)
-            & (sample["Growth"] >= min_growth)
-            & (sample["EBITDA_Margin"] >= min_margin)
-            & (sample["Net_Debt_EBITDA"] <= max_leverage)
-            & (sample["EV_EBITDA"] <= max_multiple)
-        ].copy()
-
-        def normalize(series):
-            low = series.min()
-            high = series.max()
-
-            if high == low:
-                return pd.Series(
-                    1.0, index=series.index
-                )
-
-            return (series - low) / (high - low)
-
-    if not filtered.empty:
-            # Score relative to the candidates that pass the filters.
-            growth_score = normalize(filtered["Growth"])
-            margin_score = normalize(filtered["EBITDA_Margin"])
-            leverage_score = 1 - normalize(
-                filtered["Net_Debt_EBITDA"]
-            )
-            valuation_score = 1 - normalize(
-                filtered["EV_EBITDA"]
-            )
-            fit_score = (
-                filtered["Strategic_Fit"] - 1
-            ) / 4
-
-            weight_total = sum(weights)
-
-            filtered["Score"] = 100 * (
-                growth_score * growth_weight
-                + margin_score * margin_weight
-                + leverage_score * leverage_weight
-                + valuation_score * valuation_weight
-                + fit_score * fit_weight
-            ) / weight_total
-
-            filtered = filtered.sort_values(
-                "Score", ascending=False
-            ).reset_index(drop=True)
-
-            filtered.insert(
-                0, "Rank", np.arange(1, len(filtered) + 1)
-            )
-
-            st.subheader(
-                f"Shortlist for {acquirer}"
-            )
-            st.write(
-                f"{len(filtered)} fictional candidates meet "
-                "the current filters."
-            )
-
-            display_df = filtered.copy()
-            display_df["Growth"] *= 100
-            display_df["EBITDA_Margin"] *= 100
-
-            st.dataframe(
-                display_df.style.format({
-                    "Revenue": "{:,.1f}",
-                    "Growth": "{:.1f}%",
-                    "EBITDA_Margin": "{:.1f}%",
-                    "Net_Debt_EBITDA": "{:.2f}x",
-                    "EV_EBITDA": "{:.1f}x",
-                    "Score": "{:.1f}"
-                }),
-                use_container_width=True,
-                hide_index=True
-            )
-
-            fig = px.bar(
-                filtered.head(5),
-                x="Target",
-                y="Score",
-                title="Top-ranked sample candidates",
-                text_auto=".1f"
-            )
-            st.plotly_chart(
-                fig, use_container_width=True
-            )
-
-            st.download_button(
-                "Download M&A shortlist (CSV)",
-                data=filtered.to_csv(index=False).encode("utf-8"),
-                file_name="valora_ma_shortlist.csv",
-                mime="text/csv"
-            )
-
-    else:
-            st.info(
-                "No sample companies meet all the current filters. "
-                "Try relaxing one or more criteria."
-            )
+with screening_tab:
+    st.header("Russell 3000 M&A Target Screening")
 
     st.caption(
-        "Scores are screening aids, not acquisition "
-        "recommendations. The current sample companies and "
-        "their financial data are fictional."
+        "Universe source: iShares Russell 3000 ETF (IWV) holdings. "
+        "This is a holdings-based proxy, not a guaranteed exact "
+        "copy of the official Russell 3000 constituent list."
     )
+
+    try:
+        with st.spinner("Loading Russell 3000 holdings..."):
+            universe = get_russell3000_universe()
+
+        st.success(
+            f"Universe loaded: {len(universe):,} US equity holdings."
+        )
+
+        st.write("Preview of the company universe")
+
+        st.dataframe(
+            universe.head(25),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.download_button(
+            "Download company universe (CSV)",
+            data=universe.to_csv(index=False).encode("utf-8"),
+            file_name="valora_russell3000_universe.csv",
+            mime="text/csv",
+        )
+
+    except Exception as e:
+        st.error(
+            "Could not load the Russell 3000 holdings. "
+            "Check the data source and try again."
+        )
+        st.exception(e)
+
 
 
 # --------------------------------------------------
