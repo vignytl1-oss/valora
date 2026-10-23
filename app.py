@@ -552,16 +552,12 @@ with valuation_tab:
 with screening_tab:
 
    @st.cache_data(ttl=86400, show_spinner=False)
-   def get_russell3000_universe():
-    """Load a Russell 3000 proxy from iShares IWV holdings."""
-    import io
+def get_russell3000_universe():
+    """Load a Russell 3000 proxy from IWV ETF holdings."""
     import requests
+    import io
 
-    url = (
-        "https://www.ishares.com/us/products/239714/"
-        "ishares-russell-3000-etf/1467271812596.ajax"
-        "?fileType=csv&fileName=IWV_holdings&dataType=fund"
-    )
+    url = "https://tickerinside.com/api/v1/fund/iwv.csv"
 
     response = requests.get(
         url,
@@ -570,128 +566,65 @@ with screening_tab:
     )
     response.raise_for_status()
 
-    lines = response.text.splitlines()
+    if not response.text.strip():
+        raise ValueError("The holdings source returned an empty file.")
 
-    header_row = next(
-        (
-            i for i, line in enumerate(lines)
-            if "Ticker" in line
-            and "Name" in line
-            and "Asset Class" in line
-        ),
+    holdings = pd.read_csv(io.StringIO(response.text))
+    holdings.columns = (
+        holdings.columns.astype(str).str.strip().str.lower()
+    )
+
+    # Identify ticker, company name, and sector columns.
+    ticker_col = next(
+        (c for c in ["ticker", "symbol"] if c in holdings.columns),
+        None,
+    )
+    name_col = next(
+        (c for c in ["name", "company", "company_name"] if c in holdings.columns),
+        None,
+    )
+    sector_col = next(
+        (c for c in ["sector", "gics_sector"] if c in holdings.columns),
         None,
     )
 
-    if header_row is None:
+    if ticker_col is None or name_col is None:
         raise ValueError(
-            "Could not find the holdings table in the IWV file."
+            "The holdings CSV does not contain recognizable ticker "
+            "and company-name columns. Columns received: "
+            + ", ".join(holdings.columns)
         )
 
-        csv_text = "\n".join(lines[header_row:])
+    result = pd.DataFrame({
+        "Ticker": holdings[ticker_col].astype(str).str.strip(),
+        "Company": holdings[name_col].astype(str).str.strip(),
+        "Sector": (
+            holdings[sector_col].astype(str).str.strip()
+            if sector_col is not None
+            else "Unknown"
+        ),
+    })
 
-    try:
-        holdings = pd.read_csv(
-            io.StringIO(csv_text),
-            engine="python",
-            on_bad_lines="skip",
-        )
-    except Exception as exc:
-        raise ValueError(
-            f"Unable to parse the IWV holdings CSV: {exc}"
-        ) from exc
-
-        csv_text = "\n".join(lines[header_row:])
-
-    holdings = pd.read_csv(
-        io.StringIO(csv_text),
-        engine="python",
-        on_bad_lines="skip",
-    )
-
-    holdings.columns = holdings.columns.str.strip()
-
-    required = [
-        "Ticker", "Name", "Sector", "Asset Class", "Location"
-    ]
-
-    missing = [
-        col for col in required if col not in holdings.columns
-    ]
-
-    if missing:
-        raise ValueError(
-            f"IWV holdings are missing columns: {missing}"
-        )
-
-    universe = holdings.loc[
-        (holdings["Asset Class"] == "Equity")
-        & (holdings["Location"] == "United States"),
-        ["Ticker", "Name", "Sector"],
+    result = result[
+        result["Ticker"].ne("")
+        & result["Ticker"].ne("nan")
+        & result["Company"].ne("")
+        & result["Company"].ne("nan")
     ].copy()
 
-    universe.columns = ["Ticker", "Company", "Sector"]
-
-    universe["Ticker"] = (
-        universe["Ticker"]
-        .astype(str)
-        .str.replace(".", "-", regex=False)
-        .str.strip()
+    result["Ticker"] = result["Ticker"].str.replace(
+        ".", "-", regex=False
     )
 
-    universe = universe[
-        universe["Ticker"].ne("")
-        & universe["Ticker"].ne("-")
-        & universe["Ticker"].ne("nan")
-    ].drop_duplicates(subset=["Ticker"])
+    result = result.drop_duplicates(subset=["Ticker"])
 
-    if len(universe) < 2000:
+    if len(result) < 2000:
         raise ValueError(
-            f"Only {len(universe)} equities loaded. "
-            "The holdings data may be incomplete."
+            f"Only {len(result)} holdings loaded; expected at least "
+            "2,000. The downloaded data may be incomplete."
         )
 
-    return universe.reset_index(drop=True)
-
-
-with screening_tab:
-    st.header("Russell 3000 M&A Target Screening")
-
-    st.caption(
-        "Universe source: iShares Russell 3000 ETF (IWV) holdings. "
-        "This is a holdings-based proxy, not a guaranteed exact "
-        "copy of the official Russell 3000 constituent list."
-    )
-
-    try:
-        with st.spinner("Loading Russell 3000 holdings..."):
-            universe = get_russell3000_universe()
-
-        st.success(
-            f"Universe loaded: {len(universe):,} US equity holdings."
-        )
-
-        st.write("Preview of the company universe")
-
-        st.dataframe(
-            universe.head(25),
-            use_container_width=True,
-            hide_index=True,
-        )
-
-        st.download_button(
-            "Download company universe (CSV)",
-            data=universe.to_csv(index=False).encode("utf-8"),
-            file_name="valora_russell3000_universe.csv",
-            mime="text/csv",
-        )
-
-    except Exception as e:
-        st.error(
-            "Could not load the Russell 3000 holdings. "
-            "Check the data source and try again."
-        )
-        st.exception(e)
-
+    return result.reset_index(drop=True)
 
 
 # --------------------------------------------------
