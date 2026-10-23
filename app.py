@@ -600,6 +600,14 @@ with screening_tab:
             f"Unable to parse the IWV holdings CSV: {exc}"
         ) from exc
 
+        csv_text = "\n".join(lines[header_row:])
+
+    holdings = pd.read_csv(
+        io.StringIO(csv_text),
+        engine="python",
+        on_bad_lines="skip",
+    )
+
     holdings.columns = holdings.columns.str.strip()
 
     required = [
