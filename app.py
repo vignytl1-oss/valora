@@ -587,9 +587,19 @@ with screening_tab:
             "Could not find the holdings table in the IWV file."
         )
 
-    holdings = pd.read_csv(
-        io.StringIO("\n".join(lines[header_row:]))
-    )
+        csv_text = "\n".join(lines[header_row:])
+
+    try:
+        holdings = pd.read_csv(
+            io.StringIO(csv_text),
+            engine="python",
+            on_bad_lines="skip",
+        )
+    except Exception as exc:
+        raise ValueError(
+            f"Unable to parse the IWV holdings CSV: {exc}"
+        ) from exc
+
     holdings.columns = holdings.columns.str.strip()
 
     required = [
