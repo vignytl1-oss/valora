@@ -642,5 +642,3 @@ try:
     "Verify all financial inputs and assumptions independently. "
     "It does not constitute investment advice."
 )
-
-
