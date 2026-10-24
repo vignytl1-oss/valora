@@ -550,7 +550,8 @@ with valuation_tab:
 # ==================================================
 
 with screening_tab:
-
+   st.header("Russell 3000 M&A Target Screening")
+   st.info("M&A screening section is running.")
    @st.cache_data(ttl=86400, show_spinner=False)
    def get_russell3000_universe():
     """Load a Russell 3000 proxy from IWV ETF holdings."""
