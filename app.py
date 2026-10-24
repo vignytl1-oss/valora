@@ -627,16 +627,24 @@ with screening_tab:
    st.header("Russell 3000 M&A Target Screening")
    st.info("M&A screening section is running.")
    st.write("Step 1: Starting company universe load...")
+   st.write("Step 1a: Calling holdings loader...")
+
 try:
     with st.spinner("Loading Russell 3000 holdings..."):
             universe = get_russell3000_universe()
 
-    st.success("Step 1b: Holdings loader finished.")
-    st.write(f"Step 2: Loaded {len(universe):,} companies.")
+   st.success("Step 1b: Holdings loader finished.")
+   st.write(f"Step 2: Loaded {len(universe):,} companies.")
 
-    except Exception as e:
-    st.error("The holdings loader failed.")
-    st.exception(e)
+   st.dataframe(
+            universe.head(25),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+except Exception as e:
+   st.error("The holdings loader failed.")
+   st.exception(e)
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
