@@ -624,27 +624,33 @@ def get_russell3000_universe():
     return result.reset_index(drop=True)
        
 with screening_tab:
-   st.header("Russell 3000 M&A Target Screening")
-   st.info("M&A screening section is running.")
-   st.write("Step 1: Starting company universe load...")
-   st.write("Step 1a: Calling holdings loader...")
+    st.header("Russell 3000 M&A Target Screening")
+    st.info("M&A screening section is running.")
+    st.write("Loading company universe...")
 
-try:
-    with st.spinner("Loading Russell 3000 holdings..."):
-         universe = get_russell3000_universe()
+    try:
+        universe = get_russell3000_universe()
 
-   st.success("Step 1b: Holdings loader finished.")
-   st.write(f"Step 2: Loaded {len(universe):,} companies.")
+        st.success(
+            f"Universe loaded: {len(universe):,} companies."
+        )
 
-   st.dataframe(
+        st.dataframe(
             universe.head(25),
             use_container_width=True,
             hide_index=True,
         )
 
-except Exception as e:
-   st.error("The holdings loader failed.")
-   st.exception(e)
+        st.download_button(
+            "Download company universe (CSV)",
+            data=universe.to_csv(index=False).encode("utf-8"),
+            file_name="valora_russell3000_universe.csv",
+            mime="text/csv",
+        )
+
+    except Exception as e:
+        st.error("Could not load the company universe.")
+        st.exception(e)
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
