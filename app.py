@@ -623,34 +623,36 @@ def get_russell3000_universe():
 
     return result.reset_index(drop=True)
        
+
 with screening_tab:
     st.header("Russell 3000 M&A Target Screening")
     st.info("M&A screening section is running.")
     st.write("Loading company universe...")
 
-try:
+    try:
         universe = get_russell3000_universe()
 
-st.success(
+        st.success(
             f"Universe loaded: {len(universe):,} companies."
         )
 
-    st.dataframe(
+        st.dataframe(
             universe.head(25),
             use_container_width=True,
             hide_index=True,
         )
 
-    st.download_button(
+        st.download_button(
             "Download company universe (CSV)",
             data=universe.to_csv(index=False).encode("utf-8"),
             file_name="valora_russell3000_universe.csv",
             mime="text/csv",
         )
 
-except Exception as e:
-    st.error("Could not load the company universe.")
-    st.exception(e)
+    except Exception as e:
+        st.error("Could not load the company universe.")
+        st.exception(e)
+
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
