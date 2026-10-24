@@ -641,4 +641,4 @@ try:
     "Valora is an educational financial analysis prototype. "
     "Verify all financial inputs and assumptions independently. "
     "It does not constitute investment advice."
-)
+   )
