@@ -632,8 +632,6 @@ with screening_tab:
             universe = get_russell3000_universe()
 
        st.write(f"Step 2: Loaded {len(universe):,} companies.")
-   
-
 
 # --------------------------------------------------
 # FOOTER
