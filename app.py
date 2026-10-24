@@ -628,11 +628,15 @@ with screening_tab:
    st.info("M&A screening section is running.")
    st.write("Step 1: Starting company universe load...")
 try:
-   with st.spinner("Loading Russell 3000 holdings..."):
-         universe = get_russell3000_universe()
+    with st.spinner("Loading Russell 3000 holdings..."):
+            universe = get_russell3000_universe()
 
-   st.write(f"Step 2: Loaded {len(universe):,} companies.")
+    st.success("Step 1b: Holdings loader finished.")
+    st.write(f"Step 2: Loaded {len(universe):,} companies.")
 
+    except Exception as e:
+    st.error("The holdings loader failed.")
+    st.exception(e)
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
