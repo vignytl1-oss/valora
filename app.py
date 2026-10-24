@@ -572,41 +572,24 @@ def get_russell3000_universe():
     )
 
     # Identify ticker, company name, and sector columns.
-    ticker_col = next(
-        (c for c in ["ticker", "symbol"] if c in holdings.columns),
-        None,
-    )
-    name_col = next(
-        (c for c in ["name", "company", "company_name"] if c in holdings.columns),
-        None,
-    )
-    sector_col = next(
-        (c for c in ["sector", "gics_sector"] if c in holdings.columns),
-        None,
-    )
+    
+    ticker_col = "ticker"
 
-    if ticker_col is None or name_col is None:
+    if ticker_col not in holdings.columns:
         raise ValueError(
-            "The holdings CSV does not contain recognizable ticker "
-            "and company-name columns. Columns received: "
-            + ", ".join(holdings.columns)
+            "The holdings CSV has no ticker column. "
+            f"Columns received: {', '.join(holdings.columns)}"
         )
 
     result = pd.DataFrame({
         "Ticker": holdings[ticker_col].astype(str).str.strip(),
-        "Company": holdings[name_col].astype(str).str.strip(),
-        "Sector": (
-            holdings[sector_col].astype(str).str.strip()
-            if sector_col is not None
-            else "Unknown"
-        ),
+        "Company": holdings[ticker_col].astype(str).str.strip(),
+        "Sector": "Unknown",
     })
 
     result = result[
         result["Ticker"].ne("")
         & result["Ticker"].ne("nan")
-        & result["Company"].ne("")
-        & result["Company"].ne("nan")
     ].copy()
 
     result["Ticker"] = result["Ticker"].str.replace(
@@ -617,11 +600,12 @@ def get_russell3000_universe():
 
     if len(result) < 2000:
         raise ValueError(
-            f"Only {len(result)} holdings loaded; expected at least "
-            "2,000. The downloaded data may be incomplete."
+            f"Only {len(result)} tickers loaded; "
+            "expected at least 2,000."
         )
 
     return result.reset_index(drop=True)
+
        
 
 with screening_tab:
