@@ -631,7 +631,7 @@ with screening_tab:
 try:
         universe = get_russell3000_universe()
 
-st.success(
+    st.success(
             f"Universe loaded: {len(universe):,} companies."
         )
 
