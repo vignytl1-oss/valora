@@ -631,7 +631,7 @@ with screening_tab:
 
 try:
     with st.spinner("Loading Russell 3000 holdings..."):
-            universe = get_russell3000_universe()
+         universe = get_russell3000_universe()
 
    st.success("Step 1b: Holdings loader finished.")
    st.write(f"Step 2: Loaded {len(universe):,} companies.")
