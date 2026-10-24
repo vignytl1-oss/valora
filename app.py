@@ -628,34 +628,34 @@ with screening_tab:
     st.info("M&A screening section is running.")
     st.write("Loading company universe...")
 
-    try:
+try:
         universe = get_russell3000_universe()
 
-        st.success(
+    st.success(
             f"Universe loaded: {len(universe):,} companies."
         )
 
-        st.dataframe(
+    st.dataframe(
             universe.head(25),
             use_container_width=True,
             hide_index=True,
         )
 
-        st.download_button(
+    st.download_button(
             "Download company universe (CSV)",
             data=universe.to_csv(index=False).encode("utf-8"),
             file_name="valora_russell3000_universe.csv",
             mime="text/csv",
         )
 
-    except Exception as e:
-        st.error("Could not load the company universe.")
-        st.exception(e)
+except Exception as e:
+    st.error("Could not load the company universe.")
+    st.exception(e)
 # --------------------------------------------------
 # FOOTER
 # --------------------------------------------------
-   st.divider()
-   st.caption(
+    st.divider()
+    st.caption(
     "Valora is an educational financial analysis prototype. "
     "Verify all financial inputs and assumptions independently. "
     "It does not constitute investment advice."
